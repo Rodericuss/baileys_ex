@@ -33,6 +33,12 @@
   `product`, `native_flow_response` and `url`. Before, the server acked media
   sends but recipient phones, including the sender's own phone, silently
   dropped them, while text messages arrived normally.
+- Sessions can now be built from a pre-key bundle without a one-time pre-key,
+  matching Baileys `parseAndInjectE2ESessions` (`extractKey` returns
+  `undefined` for a missing `key` node). When a device runs out of one-time
+  pre-keys the server sends only the signed pre-key; before,
+  `Session.parse_and_inject_e2e_sessions/2` failed with `:missing_pre_key` and
+  every send to that contact failed until the device uploaded new keys.
 
 ## [0.1.0-alpha.12] - 2026-08-26
 
