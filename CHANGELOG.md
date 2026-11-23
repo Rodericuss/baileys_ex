@@ -39,6 +39,12 @@
   pre-keys the server sends only the signed pre-key; before,
   `Session.parse_and_inject_e2e_sessions/2` failed with `:missing_pre_key` and
   every send to that contact failed until the device uploaded new keys.
+- Messages we send from another of our devices (for example the phone) are now
+  unwrapped from `device_sent_message` after decryption, matching Baileys
+  `decode-wa-message.ts` (`msg = msg.deviceSentMessage?.message || msg`).
+  Before, `messages_upsert` carried the wrapper, so consumers reading
+  `conversation`, `extended_text_message` or media fields saw nothing for
+  every message the account owner sent from the phone.
 
 ## [0.1.0-alpha.12] - 2026-08-26
 

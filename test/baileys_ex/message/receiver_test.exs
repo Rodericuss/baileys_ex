@@ -148,6 +148,78 @@ defmodule BaileysEx.Message.ReceiverTest do
     unsubscribe.()
   end
 
+  test "process_node/3 unwraps messages we sent from another of our devices" do
+    assert {:ok, emitter} = EventEmitter.start_link()
+
+    parent = self()
+    unsubscribe = EventEmitter.process(emitter, &send(parent, {:events, &1}))
+
+    {repo, _store} = MessageSignalHelpers.new_repo()
+    session = MessageSignalHelpers.session_fixture()
+
+    assert {:ok, repo} =
+             Repository.inject_e2e_session(repo, %{
+               jid: "15550001111:2@s.whatsapp.net",
+               session: session
+             })
+
+    plaintext =
+      Message.encode(%Message{
+        device_sent_message: %Message.DeviceSentMessage{
+          destination_jid: "15551234567@s.whatsapp.net",
+          message: %Message{conversation: "sent from my phone"}
+        }
+      })
+
+    assert {:ok, repo, %{ciphertext: ciphertext}} =
+             Repository.encrypt_message(repo, %{
+               jid: "15550001111:2@s.whatsapp.net",
+               data: plaintext
+             })
+
+    node = %BinaryNode{
+      tag: "message",
+      attrs: %{
+        "id" => "dsm-1",
+        "from" => "15550001111@s.whatsapp.net",
+        "participant" => "15550001111:2@s.whatsapp.net",
+        "recipient" => "15551234567@s.whatsapp.net",
+        "t" => "1710000000"
+      },
+      content: [
+        %BinaryNode{tag: "enc", attrs: %{"type" => "pkmsg"}, content: {:binary, ciphertext}}
+      ]
+    }
+
+    context = %{
+      signal_repository: repo,
+      event_emitter: emitter,
+      me_id: "15550001111:1@s.whatsapp.net",
+      me_lid: "15550001111@lid",
+      send_receipt_fun: fn _receipt_node -> :ok end
+    }
+
+    assert {:ok, %{message: %Message{conversation: "sent from my phone"}}, _context} =
+             Receiver.process_node(node, context)
+
+    assert_receive {:events,
+                    %{
+                      messages_upsert: %{
+                        messages: [
+                          %{
+                            key: %{remote_jid: "15551234567@s.whatsapp.net", from_me: true},
+                            message: %Message{
+                              conversation: "sent from my phone",
+                              device_sent_message: nil
+                            }
+                          }
+                        ]
+                      }
+                    }}
+
+    unsubscribe.()
+  end
+
   test "process_node/3 stores PN to LID mappings from lid-addressed direct messages" do
     assert {:ok, emitter} = EventEmitter.start_link()
 

@@ -112,7 +112,8 @@ defmodule BaileysEx.Message.Receiver do
 
   defp process_decrypted_node(node, envelope, decrypted_repo, plaintext, context, opts) do
     case Wire.decode(plaintext) do
-      {:ok, proto_message} ->
+      {:ok, decoded_message} ->
+        proto_message = unwrap_device_sent_message(decoded_message)
         :ok = maybe_cancel_phone_request(context, node.attrs["id"])
 
         case process_decoded_message(node, envelope, decrypted_repo, proto_message, context) do
@@ -130,6 +131,15 @@ defmodule BaileysEx.Message.Receiver do
         handle_failed_decryption(node, envelope, updated_context, reason, error, opts)
     end
   end
+
+  # Ports `msg = msg.deviceSentMessage?.message || msg` from Baileys decode-wa-message.ts:
+  # what we sent from another of our devices arrives wrapped for the destination chat.
+  defp unwrap_device_sent_message(%Message{
+         device_sent_message: %Message.DeviceSentMessage{message: %Message{} = message}
+       }),
+       do: message
+
+  defp unwrap_device_sent_message(message), do: message
 
   defp process_decoded_message(node, envelope, decrypted_repo, proto_message, context) do
     with {:ok, signal_repository} <-
