@@ -25,6 +25,14 @@
   `groups_update` merge by id; `chats_delete` and `messages_delete` (`keys`)
   are deduplicated; `messages_update` merges updates per message key;
   `messages_reaction` and `message_receipt_update` accumulate.
+- Media messages now carry the `mediatype` attribute on every `enc` node
+  (direct recipients, the sender's own devices and group `skmsg`), ported from
+  Baileys `getMediaType` in `messages-send.ts`: `image`, `video`/`gif`,
+  `audio`/`ptt`, `document`, `sticker`, `vcard`, `contact_array`,
+  `livelocation`, `list`, `list_response`, `buttons_response`, `order`,
+  `product`, `native_flow_response` and `url`. Before, the server acked media
+  sends but recipient phones, including the sender's own phone, silently
+  dropped them, while text messages arrived normally.
 
 ## [0.1.0-alpha.12] - 2026-08-26
 
